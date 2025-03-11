@@ -1,6 +1,9 @@
 package main
 
-import "strings"
+import (
+	"encoding/csv"
+	"strings"
+)
 
 type Customer struct {
 	Email string
@@ -10,17 +13,19 @@ type Customer struct {
 	Note string
 	Tags string
 }
+
+//values listed in order of big commerce export
 type Address struct {
 	AddressFirstName string
 	AddressLastName string
 	AddressCompany string
-	AddressPhone string
 	AddressLine1 string
 	AddressLine2 string
 	AddressCity string
 	AddressProvinceCode string
-	AddressCountry string
 	AddressZip string
+	AddressCountry string
+	AddressPhone string
 }
 
 
@@ -47,17 +52,18 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-
+	
 	//create csv writer to new file
+	//will create a new file if does not exist
 	writer, file, err := createCSVWriter("matrixify-customers-import.csv")
 	if err != nil {
         panic(err)
     }
-	//defer file close to end of execution
 	defer file.Close()
 
 	//for addresses
 	for _, record := range records {
+		//create customer values for record
 		customer := Customer {
 			Email : record[4],
 			FirstName : record[1],
@@ -66,64 +72,59 @@ func main() {
 			Note : "Joined Big Commerce: "+record[9]+" - "+record[6],
 			Tags : "BigCommerce,",
 		}
+		//check for multiple addresses in cell
 		addresses := strings.Split(record[10], "|")
 		if len(addresses) > 1 {
+			//loop over multiple addresses, create new line for each
 			for _, address := range addresses {
-				//Address First Name: Daniel, Address Last Name: Ramirez, Address Company: , 
-				// Address Line 1: 221 E. Indianola Ave, Address Line 2: , City/Suburb: Phoenix, 
-				// State Abbreviation: AZ, Zip/Postcode: 85012, Country: United States, Address Phone: 
-				newAddress := Address{}
-				addressParts := strings.Split(address, ",")
-				for _, addressValue := range addressParts {
-					values := strings.Split(addressValue, ":")
-					//bc col order
-					newAddress.AddressFirstName = values[0]
-					newAddress.AddressLastName = values[1]
-					newAddress.AddressCompany = values[2]
-					newAddress.AddressLine1 = values[3]
-					newAddress.AddressLine2 = values[4]
-					newAddress.AddressCity = values[5]
-					newAddress.AddressProvinceCode = values[6]
-					newAddress.AddressZip = values[7]
-					newAddress.AddressCountry = values[8]
-					newAddress.AddressPhone = values[9]
-				}
-				
-				writeCSVRecord(writer, []string{
-					//basic cols - email, command, first, last, phone, note, tags, tags command
-					customer.Email, "MERGE", customer.FirstName, customer.LastName, customer.Phone,customer.Note,customer.Tags, "MERGE",
-					//address cols - command, first, last, company, phone, line1, line2, city, provinceCode, country, zip
-					"MERGE", newAddress.AddressFirstName, newAddress.AddressLastName, newAddress.AddressCompany, newAddress.AddressPhone,
-					newAddress.AddressLine1, newAddress.AddressLine2, newAddress.AddressCity, newAddress.AddressProvinceCode, 
-					newAddress.AddressCountry, newAddress.AddressZip,
-				})
+				newAddress := breakdownAddress(address)
+				writeNewRecord(writer, customer, newAddress)
 			}
 		} else {
-			addressVals := Address{
-				AddressFirstName : "",
-				AddressLastName : "",
-				AddressCompany : "",
-				AddressPhone : "",
-				AddressLine1 : "",
-				AddressLine2 : "",
-				AddressCity : "",
-				AddressProvinceCode : "",
-				AddressCountry : "",
-				AddressZip : "",
-			}
-			writeCSVRecord(writer, []string{
-				//basic cols - email, command, first, last, phone, note, tags, tags command
-				customer.Email, "MERGE", customer.FirstName, customer.LastName, customer.Phone,customer.Note,customer.Tags, "MERGE",
-				//address cols - command, first, last, company, phone, line1, line2, city, provinceCode, country, zip
-				"MERGE", addressVals.AddressFirstName, addressVals.AddressLastName, addressVals.AddressCompany, addressVals.AddressPhone,
-				addressVals.AddressLine1, addressVals.AddressLine2, addressVals.AddressCity, addressVals.AddressProvinceCode, 
-				addressVals.AddressCountry, addressVals.AddressZip,
-			})
-		}
+			//create single address line
+			address := record[10]
+			newAddress := breakdownAddress(address)
+			writeNewRecord(writer, customer, newAddress)
+		} 
 	}
 
 	writer.Flush()
 	if err := writer.Error(); err != nil {
         panic(err)
     }
+}
+
+func writeNewRecord(writer *csv.Writer, customer Customer, address Address){
+	writeCSVRecord(writer, []string{
+		//basic cols - email, command, first, last, phone, note, tags, tags command
+		customer.Email, "MERGE", customer.FirstName, customer.LastName, customer.Phone,customer.Note,customer.Tags, "MERGE",
+		//address cols - command, first, last, company, phone, line1, line2, city, provinceCode, country, zip
+		"MERGE", address.AddressFirstName, address.AddressLastName, address.AddressCompany, address.AddressPhone,
+		address.AddressLine1, address.AddressLine2, address.AddressCity, address.AddressProvinceCode, 
+		address.AddressCountry, address.AddressZip,
+	})
+}
+
+func breakdownAddress(address string) Address {
+	//Address First Name: Daniel, Address Last Name: Ramirez, Address Company: , 
+	// Address Line 1: 221 E. Indianola Ave, Address Line 2: , City/Suburb: Phoenix, 
+	// State Abbreviation: AZ, Zip/Postcode: 85012, Country: United States, Address Phone: 
+	addressParts := strings.Split(address, ",")
+	addressValues := []string{}
+	for _, addressKeyValue := range addressParts {
+		value := strings.Split(addressKeyValue, ": ")[1]
+		addressValues = append(addressValues,value)
+	}
+	return Address{
+		AddressFirstName : addressValues[0],
+		AddressLastName : addressValues[1],
+		AddressCompany : addressValues[2],
+		AddressLine1 : addressValues[3],
+		AddressLine2 : addressValues[4],
+		AddressCity : addressValues[5],
+		AddressProvinceCode : addressValues[6],
+		AddressZip : addressValues[7],
+		AddressCountry : addressValues[8],
+		AddressPhone : addressValues[9],
+	}
 }
