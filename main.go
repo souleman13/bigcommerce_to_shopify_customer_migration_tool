@@ -61,6 +61,13 @@ func main() {
     }
 	defer file.Close()
 
+	//create header line for output csv
+	writeCSVRecord(writer,[]string{
+		"email","command","first name","last name","phone","note","tags","tags command",
+		"address command","address first name","address last name","address company", "address line 1","address line 2",
+		"address city","address province code","address ","address country","address zip",
+	})
+
 	//for addresses
 	for _, record := range records {
 		//create customer values for record
