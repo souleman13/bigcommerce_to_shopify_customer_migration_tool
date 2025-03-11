@@ -2,14 +2,15 @@ package main
 
 import "strings"
 
-type LineItem struct {
+type AddressLineItem struct {
 	Email string
 	Item string
 }
 
+
 func main() {
 	//load initial csv file into memory
-	data, err := readCSVFile("OrderProductExports.csv")
+	data, err := readCSVFile("bigcommerce-customers-export.csv")
 	if err!= nil {
 		panic(err)
     }
@@ -32,52 +33,32 @@ func main() {
 	}
 
 	//create csv writer to new file
-	writer, file, err := createCSVWriter("Order-Product-Brokendown-v2.csv")
+	writer, file, err := createCSVWriter("matrixify-customers-import.csv")
 	if err != nil {
         panic(err)
     }
 	//defer file close to end of execution
 	defer file.Close()
 
-	//for order products
+	//for addresses
 	for _, record := range records {
-		products := strings.Split(record[1], "|")
-		if len(products) > 1 {
-			for _, product := range products {
-				newAddressLine := LineItem{
+		addresses := strings.Split(record[1], "|")
+		if len(addresses) > 1 {
+			for _, address := range addresses {
+				newAddressLine := AddressLineItem{
 					Email: record[0],
-					Item: product,
+					Item: address,
 				}
 				writeCSVRecord(writer, []string{newAddressLine.Email,newAddressLine.Item})
 			}
 		} else {
-			newAddressLine := LineItem{
+			newAddressLine := AddressLineItem{
 				Email: record[0],
 				Item: record[1],
 			}
 			writeCSVRecord(writer, []string{newAddressLine.Email,newAddressLine.Item})
 		}
 	}
-
-	//for addresses
-	// for _, record := range records {
-	// 	addresses := strings.Split(record[1], "|")
-	// 	if len(addresses) > 1 {
-	// 		for _, address := range addresses {
-	// 			newAddressLine := LineItem{
-	// 				Email: record[0],
-	// 				Item: address,
-	// 			}
-	// 			writeCSVRecord(writer, []string{newAddressLine.Email,newAddressLine.Item})
-	// 		}
-	// 	} else {
-	// 		newAddressLine := LineItem{
-	// 			Email: record[0],
-	// 			Item: record[1],
-	// 		}
-	// 		writeCSVRecord(writer, []string{newAddressLine.Email,newAddressLine.Item})
-	// 	}
-	// }
 
 	writer.Flush()
 	if err := writer.Error(); err != nil {
