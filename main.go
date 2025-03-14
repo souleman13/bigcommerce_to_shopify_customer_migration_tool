@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/csv"
+	"fmt"
 	"strings"
 )
 
@@ -70,29 +71,35 @@ func main() {
 
 	//for addresses
 	for _, record := range records {
-		//create customer values for record
-		customer := Customer {
+		//check record has address content
+		if record[10] != "" {
+			//create customer values for record
+			customer := Customer {
 			Email : record[4],
 			FirstName : record[1],
 			LastName : record[2],
 			Phone : record[5],
 			Note : "Joined Big Commerce: "+record[9]+" - "+record[6],
 			Tags : "BigCommerce,",
-		}
-		//check for multiple addresses in cell
-		addresses := strings.Split(record[10], "|")
-		if len(addresses) > 1 {
-			//loop over multiple addresses, create new line for each
-			for _, address := range addresses {
+			}
+			//check for multiple addresses in cell
+			addresses := strings.Split(record[10], "|")
+			if len(addresses) > 1 {
+				//loop over multiple addresses, create new line for each
+				for _, address := range addresses {
+					newAddress := breakdownAddress(address)
+					writeNewRecord(writer, customer, newAddress)
+				}
+			} else {
+				//create single address line
+				address := record[10]
 				newAddress := breakdownAddress(address)
 				writeNewRecord(writer, customer, newAddress)
-			}
+			} 
 		} else {
-			//create single address line
-			address := record[10]
-			newAddress := breakdownAddress(address)
-			writeNewRecord(writer, customer, newAddress)
-		} 
+			fmt.Println("NO ADDRESS")
+		}
+		
 	}
 
 	writer.Flush()
@@ -119,9 +126,14 @@ func breakdownAddress(address string) Address {
 	addressParts := strings.Split(address, ",")
 	addressValues := []string{}
 	for _, addressKeyValue := range addressParts {
-		value := strings.Split(addressKeyValue, ": ")[1]
-		addressValues = append(addressValues,value)
+		value := strings.Split(addressKeyValue, ": ")
+		if len(value) > 1 {
+			addressValues = append(addressValues,value[1])
+		} else {
+			addressValues = append(addressValues,"")
+		}
 	}
+	// fmt.Println(addressValues[0])
 	return Address{
 		AddressFirstName : addressValues[0],
 		AddressLastName : addressValues[1],
