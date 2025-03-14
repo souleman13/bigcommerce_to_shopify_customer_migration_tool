@@ -133,7 +133,6 @@ func breakdownAddress(address string) Address {
 			addressValues = append(addressValues,"")
 		}
 	}
-	// fmt.Println(addressValues[0])
 	return Address{
 		AddressFirstName : addressValues[0],
 		AddressLastName : addressValues[1],
